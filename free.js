@@ -2,7 +2,7 @@
 /*                             free mobile crawler                                                                          */
 /*                                                                                                                          */
 /* this code is under MIT license  :                                                                                        */
-/* author: stéphane bard                                                                                                    */
+/* author: stéphane bard   <stephane.bard@gmail.com>                                                                        */
 /*                                                                                                                          */
 /*                                                                                                                          */
 /* Copyright © <date>, <copyright holders> Permission is hereby granted, free of charge, to any person obtaining a copy of  */
