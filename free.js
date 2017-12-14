@@ -157,15 +157,6 @@ casper.then(function(){
   });
 
   map_img_indice_keyboard = result.map_id_image_num;
-
-  // dump
-  // // Write decoded data to local file!
-  // for(var k=0;k<result.imgs.length;k++){
-  //   var img_data = result.imgs[k];
-  //   var buf = new Buffer(img_data, "base64").toString('binary');
-  //   fs.write("test_little_"+k+".png", buf, 'wb'); 
-  // }
-  // this.echo(JSON.stringify(result.map_id_image_num));
 });
 
 casper.then(function(){
