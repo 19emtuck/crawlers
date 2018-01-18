@@ -103,7 +103,7 @@ casper.then(function(){
             var _m    = _date.split('/')[1];
             var _d    = _date.split('/')[0];
 
-            return {'name'     : _y+_m+_d+'_DIOT.pdf',
+            return {'name'     : _y+_m+_d+'_DIOT_'+$item.attr('id')+'.pdf',
                     'id'       : $item.attr('id'),
                     's_amount' : $item.find('td').get(4).innerText,
                     'f_amount' : parseFloat($item.find('td').get(4).innerText.split(' ')[0].replace(',','.')),
@@ -146,7 +146,7 @@ casper.then(function(){
         this.then(function(){
           lst_documents.push(_doc);
           row_index++;
-        })
+        });
 
         this.then(function(){
           if(!fs.exists(aim_path+_doc.name)){
