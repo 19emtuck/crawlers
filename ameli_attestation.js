@@ -64,6 +64,10 @@ casper.userAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X)');
 casper.thenOpen(root_url);
 casper.wait(1000);
 
+
+casper.thenBypassIf(function(){return !this.exists('a.lien-connexion')}, 1);
+casper.thenClick('a.lien-connexion');
+
 casper.waitForSelector('form[name="connexionCompteForm"]');
 casper.then(function(){
   this.fill('form[name="connexionCompteForm"]',{'connexioncompte_2numSecuriteSociale' : identifiant,
