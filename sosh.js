@@ -63,14 +63,17 @@ casper.thenOpen(root_url);
 
 casper.waitForSelector('#o-nav-item-login');
 casper.thenClick('#o-nav-item-login');
-// casper.waitForSelector('input.sc_button_content_2');
-casper.waitForSelector('#AuthentForm input.submit');
+casper.waitForSelector('#login');
 casper.then(function(){
-  this.fill('form#AuthentForm',{'credential' : identifiant,
-                                  'password' : password});
+  this.fillSelectors('form#euiForm',{'#login' : identifiant});
 });
+casper.thenClick('#btnSubmit');
+casper.waitForSelector('#password');
+casper.then(function(){
+  this.fillSelectors('form#euiForm',{'#password' : password});
+});
+casper.thenClick('#btnSubmit');
 casper.wait(300);
-casper.thenClick('#AuthentForm input.submit');
 casper.waitForSelector('#o-deconnect');
 casper.thenClick('a.sosher_bills');
 casper.waitForSelector('a[href^="/?page=facture-telecharger"]');
