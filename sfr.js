@@ -85,9 +85,9 @@ casper.then(function(){
     var _date = document.querySelector('span.sr-text-grey-14 span').innerText.replace(/[ \n]*/g,'').replace(/\//g,'_');
     _date = [_date.split('_')[2], _date.split('_')[1], _date.split('_')[0]].join('');
     return {'name': +_date+'_SFR.pdf',
-            'url' : document.querySelector('a[href*="facture-fixe/telecharger/facture"]').href };
+            'url' : document.querySelector('a[href*="facture-fixe/consultation/telecharger/facture"]').href };
   });
-  if(typeof(invoice.url)!=='undefined' && typeof(invoice.name)!=='undefined' && invoice.name!==null && !fs.exists(aim_path+invoice.name)){
+  if(invoice!==null && typeof(invoice.url)!=='undefined' && typeof(invoice.name)!=='undefined' && invoice.name!==null && !fs.exists(aim_path+invoice.name)){
     this.download(invoice.url,aim_path+invoice.name);
   }
 });
