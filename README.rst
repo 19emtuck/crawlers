@@ -2,11 +2,10 @@ crawlers descriptions
 =====================
 
 
-
 sosh
 ----
 
-sample usage
+sample usage using casperjs :
 
 .. code-block:: shell
 
@@ -22,3 +21,11 @@ use timeout when using crontab and don't forget to declare PATH (crontab don't h
         # put your phone number and your password there
         # use timeout when crontab usage
         timeout 300 casperjs sosh.js --ignore-ssl-errors=true --id=0600000000 --pwd=mypassword --path=/my_path/
+
+sample usage with puppeteer :
+
+
+.. code-block:: shell
+
+        node puppeteer_sosh.js --ignore-ssl-errors=true --id=0600000000 --pwd=mypassword --path=/my_path/
+
