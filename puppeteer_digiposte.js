@@ -1,5 +1,5 @@
 /****************************************************************************************************************************/
-/*                                      sfr crawler                                                                         */
+/*                                      digiposte crawler                                                                   */
 /*                                                                                                                          */
 /* this code is under MIT license  :                                                                                        */
 /* author: stéphane bard  <stephane.bard@gmail.com>                                                                         */
@@ -22,57 +22,36 @@
 const puppeteer = require('puppeteer');
 const fs        = require('fs');
 const utils     = require('utils.js')
-
 const { exec } = require('child_process');
 
-const root_url  = 'https://www.sfr.fr/mon-espace-client';
+const root_url          =  'https://secure.digiposte.fr/identification-plus';
 
 let aim_path    = null;
 let identifiant = null;
 let password    = null;
+let remote_path = null;
 let debug       = false;
 
-
-const read_invoice = ()=>{
-  var _date = document.querySelector('span.sr-text-grey-14 span').innerText.replace(/[ \n]*/g,'').replace(/\//g,'_');
-  _date = [_date.split('_')[2], _date.split('_')[1], _date.split('_')[0]].join('');
-  return {'name': +_date+'_SFR.pdf',
-          'url' : document.querySelector('a[href*="facture-fixe/consultation/telecharger/facture"]').href };
-};
-
-const read_second_invoice = ()=>{
-  var _date = document.querySelector('span.sr-text-grey-14 span').innerText.replace(/[ \n]*/g,'').replace(/\//g,'_');
-  _date = [_date.split('_')[2], _date.split('_')[1], _date.split('_')[0]].join('');
-
-  return {'name': +_date+'_SFR.pdf',
-          'url' : document.querySelector('a[href*="facture-fixe/consultation/telecharger"]').href };
-}
-
-
-const read_lst_nodes = ()=>{
-  var lst_nodes, node, i, result;
-  result = [];
-
-  lst_nodes = document.querySelectorAll('#historique a[href*="/facture-fixe/consultation/facturette/facture"].sr-chevron');
-  for(i=0;i<lst_nodes.length;i++){
-    node = lst_nodes[i];
-    var _date = node.parentElement.previousElementSibling.querySelector('span.sr-text-grey-14 span').innerText.replace(/[ \n]*/g,'').replace(/\//g,'_');
-    result.push({'href':node.href,
-                 'date':_date})
+const click_label = (lst_spans, remote_path) => {
+  var lst_result = [];
+  for(var _i=0;_i<lst_spans.length;_i++){
+    if(lst_spans[_i].textContent===remote_path){
+      lst_spans[_i].click();
+      break;
+    }
   }
-  return result;
-}
-
+};
 
 
 process.argv.forEach(function (val, index, array) {
   if(/--path=/.test(val)){ aim_path = val.split('=')[1]; }
+  if(/--remote=/.test(val)){ remote_path = val.split('=')[1]; }
   if(/--id=/.test(val)){ identifiant = val.split('=')[1]; }
   if(/--pwd=/.test(val)){ password = val.split('=')[1]; }
   if(/--debug/.test(val)){ debug = true; }
 });
 
-if(aim_path!==null && identifiant !== null && password !== null){
+if(aim_path!==null && identifiant !== null && password !== null && remote_path!==null){
   if(!/\/$/.test(aim_path)){
     aim_path = aim_path + '/';
   }
@@ -86,43 +65,83 @@ if(aim_path!==null && identifiant !== null && password !== null){
     await page.setDefaultNavigationTimeout(90000);
 
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36');
-
     try {
-      let invoice, node, lst_nodes, i;
-
       await page.goto(root_url);
-      await page.waitForSelector('form[name="loginForm"]');
-      
-      await page.type('input[name="username"]', identifiant);
-      await page.type('input[name="password"]', password);
-
-      await page.click('#identifier');
-      await page.waitFor(300);
-      await page.waitForSelector('a[href*="logout"]')
       await page.waitFor(1000);
 
-      await page.goto('https://espace-client.sfr.fr/facture-fixe/consultation/infoconso')
-      await page.waitFor(1000);
-      await page.waitForSelector('#facture')
-      await page.click('#facture');
+      if(await page.$('a.lien-connexion') !== null){
+        await page.click('a.lien-connexion');
+      }
+      await page.waitForSelector('#bt_loginPlus_submit');
+      await page.waitForSelector('#login_plus_login');
+      await page.waitForSelector('#login_plus_input');
 
-      await page.waitForSelector('#plusFac');
+      await page.type('#login_plus_login', identifiant);
+      await page.type('#login_plus_input', password);
+      await page.waitFor(200);
+      await page.click('#bt_loginPlus_submit');
+      await page.waitFor(2000);
+      await page.waitForSelector('button.safeMenu_item_opener');
+      await page.waitForSelector('a[href="#!/mon-coffre"]');
+      await page.click('a[href="#!/mon-coffre"]');
+      await page.waitFor(2000);
+      await page.waitForSelector('button[title="Mon Coffre"]');
+      await page.waitFor('span.safeContent_name_inner');
 
-      invoice = await page.evaluate(read_invoice);
-      if(invoice!==null && typeof(invoice.url)!=='undefined' && typeof(invoice.name)!=='undefined' && invoice.name!==null &&!fs.existsSync(aim_path+invoice.name)){
-        await page.evaluate(utils.download_it, invoice.url, aim_path+invoice.name).then(utils.save_download).catch(function(error){if(error){console.log(error);}});
+      let cookies = await page.cookies();
+
+      // read xsrf token ...
+      var cookie_chunk
+      var xsrf_token = '';
+      for(var i=0;i<cookies.length;i++){
+        cookie_chunk = cookies[i];
+        if(cookie_chunk.name==='XSRF-TOKEN'){
+          xsrf_token = cookie_chunk.value;
+        }
       }
 
-      lst_nodes = await page.evaluate(read_lst_nodes);
+      await page.$$eval('span.safeContent_name_inner', click_label, remote_path);
 
-      for(i=0;i<lst_nodes.length;i++){
-        node = lst_nodes[i];
-        await page.goto(node.href);
-        await page.waitFor(1000);
+      await page.waitFor(100);
+      await page.waitForSelector('table.safeContent_container');
+      await page.waitFor(6000);
 
-        invoice = await page.evaluate(read_second_invoice);
-        if(invoice!==null && typeof(invoice.url)!=='undefined' && typeof(invoice.name)!=='undefined' && invoice.name!==null &&!fs.existsSync(aim_path+invoice.name)){
-          await page.evaluate(utils.download_it, invoice.url, aim_path+invoice.name).then(utils.save_download).catch(function(error){if(error){console.log(error);}});
+      let lst_documents = await page.evaluate(()=>{
+        var lst_result = [];
+        var lst_files = document.querySelectorAll('button[title="Aperçu du fichier"]');
+        for(var i=0; i<lst_files.length; i++){
+          var _doc = {};
+          var file = lst_files[i];
+          var document_id = file.parentElement.parentElement.parentElement.parentElement.parentElement.id.split('_')[3];
+
+          _doc.label         = file.innerText;
+          _doc.id            = document_id;
+          _doc.pdf_file_name = _doc.label.replace(/ /g,'_')+'.pdf';
+
+          lst_result.push(_doc);
+
+          // normalize content to avoid any CR or blank
+          file.innerText = _doc.label;
+        }
+        return lst_result;
+      });
+
+      for(_e=0;_e<lst_documents.length;_e++){
+        _doc = lst_documents[_e];
+
+        if(!fs.existsSync(aim_path + _doc.pdf_file_name)){
+          await page.$$eval('button', click_label, _doc.label);
+          await page.waitForSelector('span.modal_header_title--preview_inner');
+          await page.waitForSelector('button.dataAction_link.dataAction_link--download');
+          await page.waitFor(1000);
+          await page.click('button.dataAction_link.dataAction_link--download');
+
+          await page.evaluate(utils.download_it,
+                              'https://secure.digiposte.fr/rest/content/document/'+_doc.id+'?_xsrf_token='+xsrf_token,
+                              aim_path + _doc.pdf_file_name).then(utils.save_download).catch(function(error){if(error){console.log(error);}});
+          await page.click('button.modal_header_close');
+          await page.waitForSelector('button.modal_header_close', {'visible':false});
+          await page.waitFor(500);
         }
       }
 
@@ -131,4 +150,6 @@ if(aim_path!==null && identifiant !== null && password !== null){
     }
     await browser.close();
   })();
+} else {
+  console.log('aim_path or identifiant or password or remote_path missing');
 }

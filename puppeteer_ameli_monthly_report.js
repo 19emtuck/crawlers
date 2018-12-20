@@ -1,5 +1,5 @@
 /****************************************************************************************************************************/
-/*                                      sfr crawler                                                                         */
+/*                                      ameli crawler                                                                       */
 /*                                                                                                                          */
 /* this code is under MIT license  :                                                                                        */
 /* author: stéphane bard  <stephane.bard@gmail.com>                                                                         */
@@ -22,48 +22,14 @@
 const puppeteer = require('puppeteer');
 const fs        = require('fs');
 const utils     = require('utils.js')
-
 const { exec } = require('child_process');
 
-const root_url  = 'https://www.sfr.fr/mon-espace-client';
+const root_url          = 'https://assure.ameli.fr';
 
 let aim_path    = null;
 let identifiant = null;
 let password    = null;
 let debug       = false;
-
-
-const read_invoice = ()=>{
-  var _date = document.querySelector('span.sr-text-grey-14 span').innerText.replace(/[ \n]*/g,'').replace(/\//g,'_');
-  _date = [_date.split('_')[2], _date.split('_')[1], _date.split('_')[0]].join('');
-  return {'name': +_date+'_SFR.pdf',
-          'url' : document.querySelector('a[href*="facture-fixe/consultation/telecharger/facture"]').href };
-};
-
-const read_second_invoice = ()=>{
-  var _date = document.querySelector('span.sr-text-grey-14 span').innerText.replace(/[ \n]*/g,'').replace(/\//g,'_');
-  _date = [_date.split('_')[2], _date.split('_')[1], _date.split('_')[0]].join('');
-
-  return {'name': +_date+'_SFR.pdf',
-          'url' : document.querySelector('a[href*="facture-fixe/consultation/telecharger"]').href };
-}
-
-
-const read_lst_nodes = ()=>{
-  var lst_nodes, node, i, result;
-  result = [];
-
-  lst_nodes = document.querySelectorAll('#historique a[href*="/facture-fixe/consultation/facturette/facture"].sr-chevron');
-  for(i=0;i<lst_nodes.length;i++){
-    node = lst_nodes[i];
-    var _date = node.parentElement.previousElementSibling.querySelector('span.sr-text-grey-14 span').innerText.replace(/[ \n]*/g,'').replace(/\//g,'_');
-    result.push({'href':node.href,
-                 'date':_date})
-  }
-  return result;
-}
-
-
 
 process.argv.forEach(function (val, index, array) {
   if(/--path=/.test(val)){ aim_path = val.split('=')[1]; }
@@ -86,46 +52,75 @@ if(aim_path!==null && identifiant !== null && password !== null){
     await page.setDefaultNavigationTimeout(90000);
 
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36');
-
     try {
-      let invoice, node, lst_nodes, i;
-
       await page.goto(root_url);
-      await page.waitForSelector('form[name="loginForm"]');
-      
-      await page.type('input[name="username"]', identifiant);
-      await page.type('input[name="password"]', password);
-
-      await page.click('#identifier');
-      await page.waitFor(300);
-      await page.waitForSelector('a[href*="logout"]')
       await page.waitFor(1000);
 
-      await page.goto('https://espace-client.sfr.fr/facture-fixe/consultation/infoconso')
-      await page.waitFor(1000);
-      await page.waitForSelector('#facture')
-      await page.click('#facture');
-
-      await page.waitForSelector('#plusFac');
-
-      invoice = await page.evaluate(read_invoice);
-      if(invoice!==null && typeof(invoice.url)!=='undefined' && typeof(invoice.name)!=='undefined' && invoice.name!==null &&!fs.existsSync(aim_path+invoice.name)){
-        await page.evaluate(utils.download_it, invoice.url, aim_path+invoice.name).then(utils.save_download).catch(function(error){if(error){console.log(error);}});
+      if(await page.$('a.lien-connexion') !== null){
+        await page.click('a.lien-connexion');
       }
+      await page.waitForSelector('form[name="connexionCompteForm"]');
 
-      lst_nodes = await page.evaluate(read_lst_nodes);
+      await page.type('input[name="connexioncompte_2numSecuriteSociale"]', identifiant);
+      await page.type('input[name="connexioncompte_2codeConfidentiel"]', password);
+      await page.click('#id_r_cnx_btn_submit');
 
-      for(i=0;i<lst_nodes.length;i++){
-        node = lst_nodes[i];
-        await page.goto(node.href);
-        await page.waitFor(1000);
+      await page.waitForSelector('a[href*="as_paiements_page"]');
+      await page.click('a[href*="as_paiements_page"]');
+      await page.waitFor(2000);
 
-        invoice = await page.evaluate(read_second_invoice);
-        if(invoice!==null && typeof(invoice.url)!=='undefined' && typeof(invoice.name)!=='undefined' && invoice.name!==null &&!fs.existsSync(aim_path+invoice.name)){
-          await page.evaluate(utils.download_it, invoice.url, aim_path+invoice.name).then(utils.save_download).catch(function(error){if(error){console.log(error);}});
+      await page.waitForSelector('span.onoffswitch-inner');
+      await page.waitFor(2000);
+
+      await page.evaluate(()=>{
+        document.querySelector('span.onoffswitch-inner').click();
+      });
+      await page.waitFor(2000);
+
+      var lst_rembs = await page.evaluate((aim_path)=>{
+        var month_labl_to_id, row, remb_rows, _i, result, lst_download_links,
+            link, label, year_label, _i;
+
+        month_labl_to_id = { 'JANVIER'       : '01',
+                             'FEVRIER'       : '02',
+                             'F\u00C9VRIER'  : '02',
+                             'MARS'          : '03',
+                             'AVRIL'         : '04',
+                             'MAI'           : '05',
+                             'JUIN'          : '06',
+                             'JUILLET'       : '07',
+                             'AOUT'          : '08',
+                             'AO\u00DBT'     : '08',
+                             'SEPTEMBRE'     : '09',
+                             'OCTOBRE'       : '10',
+                             'NOVEMBRE'      : '11',
+                             'DECEMBRE'      : '12',
+                             'D\u00C9CEMBRE' : '12',
+                           };
+        result = [];
+        lst_download_links = document.querySelectorAll('a[id^="lienPDFReleve"]');
+
+        for(_i=0;_i<lst_download_links.length;_i++){
+
+          link        = lst_download_links[_i];
+          label       = link.parentElement.parentElement.parentElement.querySelector('span.mois').innerText;
+          year_label  = label.split(' ')[1];
+          month_label = month_labl_to_id[label.split(' ')[0]];
+
+          result.push({'name' : aim_path + 'releveMensuel_'+month_label+'_'+year_label+'.pdf',
+                       'href' : link.href});
+        }
+        return result;
+      }, aim_path);
+
+      let node;
+
+      for(var i=0;i<lst_rembs.length;i++){
+        node = lst_rembs[i];
+        if(!fs.existsSync(node.name)){
+          await page.evaluate(utils.download_it, node.href, node.name).then(utils.save_download).catch(function(error){if(error){console.log(error);}});
         }
       }
-
     } catch (error) {
       console.log(error);
     }

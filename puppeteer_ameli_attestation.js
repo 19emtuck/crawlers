@@ -1,5 +1,5 @@
 /****************************************************************************************************************************/
-/*                                      sfr crawler                                                                         */
+/*                                      ameli crawler                                                                       */
 /*                                                                                                                          */
 /* this code is under MIT license  :                                                                                        */
 /* author: stéphane bard  <stephane.bard@gmail.com>                                                                         */
@@ -25,7 +25,7 @@ const utils     = require('utils.js')
 
 const { exec } = require('child_process');
 
-const root_url  = 'https://www.sfr.fr/mon-espace-client';
+const root_url          = 'https://assure.ameli.fr';
 
 let aim_path    = null;
 let identifiant = null;
@@ -33,36 +33,32 @@ let password    = null;
 let debug       = false;
 
 
-const read_invoice = ()=>{
-  var _date = document.querySelector('span.sr-text-grey-14 span').innerText.replace(/[ \n]*/g,'').replace(/\//g,'_');
-  _date = [_date.split('_')[2], _date.split('_')[1], _date.split('_')[0]].join('');
-  return {'name': +_date+'_SFR.pdf',
-          'url' : document.querySelector('a[href*="facture-fixe/consultation/telecharger/facture"]').href };
-};
-
-const read_second_invoice = ()=>{
-  var _date = document.querySelector('span.sr-text-grey-14 span').innerText.replace(/[ \n]*/g,'').replace(/\//g,'_');
-  _date = [_date.split('_')[2], _date.split('_')[1], _date.split('_')[0]].join('');
-
-  return {'name': +_date+'_SFR.pdf',
-          'url' : document.querySelector('a[href*="facture-fixe/consultation/telecharger"]').href };
+const setup_profile = (profile_id) => {
+  document.querySelector('#attDroitsAccueilidBenefs').value=profile_id;
+  var evt = document.createEvent("HTMLEvents");
+  evt.initEvent("change", false, true);
+  document.querySelector('#attDroitsAccueilidBenefs').dispatchEvent(evt);
 }
 
 
-const read_lst_nodes = ()=>{
-  var lst_nodes, node, i, result;
-  result = [];
+/**
+ * read detail popup
+ */
+const get_document_detail = (aim_path, file_prefix)=>{
 
-  lst_nodes = document.querySelectorAll('#historique a[href*="/facture-fixe/consultation/facturette/facture"].sr-chevron');
-  for(i=0;i<lst_nodes.length;i++){
-    node = lst_nodes[i];
-    var _date = node.parentElement.previousElementSibling.querySelector('span.sr-text-grey-14 span').innerText.replace(/[ \n]*/g,'').replace(/\//g,'_');
-    result.push({'href':node.href,
-                 'date':_date})
+  var year_label  = new Date().getFullYear().toString();
+  var month_label = new Date().getMonth()+1;
+
+  month_label = month_label.toString();
+  if(month_label.length===1){
+    month_label='0'+month_label;
   }
-  return result;
+  var url = document.querySelector('a.r_lien_pdf').href;
+  f_name = aim_path+file_prefix+year_label+'_'+month_label+'.pdf';
+  return  { 'name':f_name,
+            'href':url
+          };
 }
-
 
 
 process.argv.forEach(function (val, index, array) {
@@ -88,44 +84,52 @@ if(aim_path!==null && identifiant !== null && password !== null){
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36');
 
     try {
-      let invoice, node, lst_nodes, i;
-
       await page.goto(root_url);
-      await page.waitForSelector('form[name="loginForm"]');
+      await page.waitFor(1000);
+
+      if(await page.$('a.lien-connexion') !== null){
+        await page.click('a.lien-connexion');
+      }
+      await page.waitForSelector('form[name="connexionCompteForm"]');
+
+      await page.type('input[name="connexioncompte_2numSecuriteSociale"]', identifiant);
+      await page.waitFor(500);
+      await page.type('input[name="connexioncompte_2codeConfidentiel"]', password);
+      await page.waitFor(500);
+      await page.click('#id_r_cnx_btn_submit');
+
+      await page.waitForSelector('#bpliable-header-attDroitsAccueilattDroitsItem');
+      await page.waitFor(1000);
+      await page.click('#bpliable-header-attDroitsAccueilattDroitsItem');
+      await page.waitFor(1000);
+
+      await page.waitForSelector('#attDroitsAccueilidBenefs', {'visible':true});
+      await page.evaluate(setup_profile, 'BARD13/08/19761');
+
+      await page.waitFor(100);
+      await page.click('#attDroitsAccueilidBtValider');
+      await page.waitForSelector('a.r_lien_pdf');
+
+      let node = await page.evaluate(get_document_detail, aim_path,'stephane_attestation_' );
+      if(!fs.existsSync(node.name)){
+        await page.evaluate(utils.download_it, node.href, node.name).then(utils.save_download).catch(function(error){if(error){console.log(error);}});
+      }
+
+      await page.click('input[name="attDroitsAccueilorg.apache.struts.taglib.html.CANCEL"]');
+      await page.waitForSelector('#bpliable-header-attDroitsAccueilattDroitsItem');
+
+      // casper.waitForText('Attestation de droits');
       
-      await page.type('input[name="username"]', identifiant);
-      await page.type('input[name="password"]', password);
+      await page.evaluate(setup_profile, 'BARD11/05/20051');
+      await page.waitFor(100);
+      await page.click('#attDroitsAccueilidBtValider');
+      await page.waitForSelector('a.r_lien_pdf');
+      node = await page.evaluate(get_document_detail, aim_path,'teoman_attestation_' );
 
-      await page.click('#identifier');
-      await page.waitFor(300);
-      await page.waitForSelector('a[href*="logout"]')
-      await page.waitFor(1000);
-
-      await page.goto('https://espace-client.sfr.fr/facture-fixe/consultation/infoconso')
-      await page.waitFor(1000);
-      await page.waitForSelector('#facture')
-      await page.click('#facture');
-
-      await page.waitForSelector('#plusFac');
-
-      invoice = await page.evaluate(read_invoice);
-      if(invoice!==null && typeof(invoice.url)!=='undefined' && typeof(invoice.name)!=='undefined' && invoice.name!==null &&!fs.existsSync(aim_path+invoice.name)){
-        await page.evaluate(utils.download_it, invoice.url, aim_path+invoice.name).then(utils.save_download).catch(function(error){if(error){console.log(error);}});
+      if(!fs.existsSync(node.name)){
+        await page.evaluate(utils.download_it, node.href, node.name).then(utils.save_download).catch(function(error){if(error){console.log(error);}});
       }
-
-      lst_nodes = await page.evaluate(read_lst_nodes);
-
-      for(i=0;i<lst_nodes.length;i++){
-        node = lst_nodes[i];
-        await page.goto(node.href);
-        await page.waitFor(1000);
-
-        invoice = await page.evaluate(read_second_invoice);
-        if(invoice!==null && typeof(invoice.url)!=='undefined' && typeof(invoice.name)!=='undefined' && invoice.name!==null &&!fs.existsSync(aim_path+invoice.name)){
-          await page.evaluate(utils.download_it, invoice.url, aim_path+invoice.name).then(utils.save_download).catch(function(error){if(error){console.log(error);}});
-        }
-      }
-
+      await page.click('input[name="attDroitsAccueilorg.apache.struts.taglib.html.CANCEL"]');
     } catch (error) {
       console.log(error);
     }
