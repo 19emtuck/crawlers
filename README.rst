@@ -90,7 +90,7 @@ sample usage with puppeteer :
 
 .. code-block:: shell
 
-        node puppeteer_sosh.js --ignore-ssl-errors=true --id=0600000000 --pwd=mypassword --path=/my_path/
+        node puppeteer_sosh.js --id=0600000000 --pwd=mypassword --path=/my_path/
 
 
 
