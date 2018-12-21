@@ -6,6 +6,16 @@ crawlers descriptions
           has been compile and available. So it's time to switch.
           Because most of the scripts are pure js codes, that's really easy to switch from a browser to another.
 
+.. note:: documentation about casperjs : 
+
+    - the main documentation : http://docs.casperjs.org/en/latest/
+
+.. note:: documentation about puppeteer : 
+
+    - the api description : https://pptr.dev/
+
+    - the old git page about the api https://github.com/GoogleChrome/puppeteer/blob/v1.11.0/docs/api.md
+
 installation
 ============
 
