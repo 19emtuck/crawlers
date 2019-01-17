@@ -53,18 +53,19 @@ if(aim_path!==null && identifiant !== null && password !== null){
     await page.setViewport({width:1600, height:900});
     await page.setDefaultNavigationTimeout(90000);
 
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36');
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36');
     try {
       await page.goto(root_url);
 
       await page.waitForSelector('#loginform input[name="_username"]')
+      await page.waitForSelector('button[value="Connectez-vous \u00E0 votre espace Service Navigo"]');
       await page.waitFor(1000);
       await page.type('#loginform input[name="_username"]', identifiant);
       await page.waitFor(1000);
       await page.type('#loginform input[name="_password"]', password);
       await page.waitFor(1000);
       await page.click('button[value="Connectez-vous \u00E0 votre espace Service Navigo"]');
-      await page.waitForSelector('span.plus', {'visible':true, 'timeout':30000});
+      await page.waitForSelector('span.plus', {'visible':true, 'timeout':60000});
       await page.click('span.plus');
       await page.waitForSelector('span.moins', {'visible':true});
       await page.click('a[title="T\u00e9l\u00e9charger l\'attestation PDF"]');

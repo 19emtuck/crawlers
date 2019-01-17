@@ -193,7 +193,7 @@ if(aim_path!==null && identifiant !== null && password !== null){
     aim_path = aim_path + '/';
   }
   (async () => {
-    const browser = await puppeteer.launch({args: ['--no-sandbox', '--disable-setuid-sandbox']});
+    const browser = await puppeteer.launch({args: ['--no-sandbox', '--disable-setuid-sandbox'], 'ignoreHTTPSErrors': true});
 
     const get_key_doc_to_row_index = ()=>{
       var result = [];
@@ -216,115 +216,182 @@ if(aim_path!==null && identifiant !== null && password !== null){
       return map;
     };
 
+
+    // const browser = await puppeteer.launch({
+    //   headless : false,
+    //   slowMo   : 10, // slow down by 250ms
+    //   args     : ['--no-sandbox']
+    // });
+
     const page = await browser.newPage();
 
     await page.setViewport({width:1600, height:900});
     await page.setDefaultNavigationTimeout(90000);
-
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36');
-    await page.goto(root_url);
-    await page.click('a.btn.btn-primary.tagco-mon-espace')
-    await page.waitForSelector('form[name="formConnexion"] input[name="user"]');
-    await page.click('form[name="formConnexion"] input[name="user"]');
-    await page.type('form[name="formConnexion"] input[name="user"]', identifiant);
-    await page.click('form[name="formConnexion"] input#pass');
-    await page.type('form[name="formConnexion"] input#pass', password);
-    await page.click('#labelUsername');
-    await page.click('form[name="formConnexion"] input[name="user"]');
-    await page.click('input[type="submit"]');
-    await page.waitForSelector('#carteRemboursementsSante a.more',{'visible':true});
-    await page.goto(detail_url);
-    await page.waitForSelector('#tableDernierRemboursement');
-
-    await page._client.send('Page.setDownloadBehavior', {behavior: 'allow', downloadPath: aim_path+'tmp/'});
-
-    let lst_documents = await page.evaluate(read_my_docs);
-    let _document;
-
-    for(let _i=0;_i<lst_documents.length;_i++){
-      _document = lst_documents[_i];
-      if(typeof(_document.pdf_selector)!=='undefined' && _document.pdf_selector!=='' && _document.pdf_selector!==null){
-        if(!fs.existsSync(aim_path + _document.det_file_name_pdf)){
-          await page.evaluate(utils.download_it,
-                              _document.pdf_url,
-                               aim_path + _document.det_file_name_pdf).then(utils.save_download).catch(function(error){if(error){console.log(error);}});
-          await page.waitFor(1000);
-        }
-      }
-    }
-    await page.waitFor(5000);
-
     try {
-      await page.goto(detail_url);
+
+      // await page.setRequestInterception(true);
+      // await page.on('request', interceptedRequest => {
+      //   if (interceptedRequest.url().indexOf('https://www.youtube.com') === 0
+      //    || interceptedRequest.url().indexOf('https://try.abtasty.com') === 0
+      //    || interceptedRequest.url().indexOf('https://dcinfos.abtasty.com') === 0
+      //    || interceptedRequest.url().indexOf('https://maps.google.com') === 0
+      //    || interceptedRequest.url().indexOf('https://logs1279.xiti.com') === 0
+      //    || interceptedRequest.url().indexOf('https://its.tradelab.fr') === 0
+      //    || interceptedRequest.url().indexOf('https://www.google-analytics.com') === 0
+      //    || interceptedRequest.url().indexOf('https://stats.g.doubleclick.net') === 0
+      //    || interceptedRequest.url().indexOf('https://manager.tagcommander.com') === 0
+      //    || interceptedRequest.url().indexOf('jquery.inputmask.bundle.min.js') !== -1
+      //    || interceptedRequest.url().indexOf('https://syndication.twitter.com') === 0
+      //    || interceptedRequest.url().indexOf('https://platform.twitter.com') === 0
+      //    || interceptedRequest.url().indexOf('https://www.facebook.com') === 0
+      //    || interceptedRequest.url().indexOf('https://connect.facebook.net') === 0
+      //    || interceptedRequest.url().indexOf('https://ib.adnxs.com') === 0
+      //    || interceptedRequest.url().indexOf('https://cdn.tradelab.fr') === 0
+      //    || interceptedRequest.url().indexOf('https://bat.bing.com') === 0
+      //    || interceptedRequest.url().indexOf('https://www.google.com') === 0
+      //    || interceptedRequest.url().indexOf('https://googleads.g.doubleclick.net') === 0
+      //    || interceptedRequest.url().indexOf('https://connect.facebook.net') === 0
+      //    || interceptedRequest.url().indexOf('https://ad.atdmt.com') === 0
+      //    ) {
+      //     interceptedRequest.abort();
+      //   } else {
+      //     interceptedRequest.continue();
+      //   }
+      // });
+
+      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36');
+
+      await page.goto(root_url,{ ignoreHTTPSErrors: true });
+      await page.click('a.btn.btn-primary.tagco-mon-espace')
+      await page.waitForSelector('form[name="formConnexion"] input[name="user"]');
+      await page.click('form[name="formConnexion"] input[name="user"]');
+      await page.type('form[name="formConnexion"] input[name="user"]', identifiant);
+      await page.click('form[name="formConnexion"] input#pass');
+      await page.type('form[name="formConnexion"] input#pass', password);
+      await page.click('#labelUsername');
+      await page.click('form[name="formConnexion"] input[name="user"]');
+      await page.click('input[type="submit"]');
+      await page.waitForSelector('#carteRemboursementsSante a.more',{'visible':true});
+      await page.goto(detail_url),{ ignoreHTTPSErrors: true };
       await page.waitForSelector('#tableDernierRemboursement');
-      await page.waitFor(3000);
 
-      let map_key_index;
-      let details_selector;
-      let padding=16;
+      await page._client.send('Page.setDownloadBehavior', {behavior: 'allow', downloadPath: aim_path+'tmp/'});
 
+      await page.waitFor(1000);
+      let lst_documents = await page.evaluate(read_my_docs);
+      let _document, post_data;
+
+      await page.waitFor(1000);
       for(let _i=0;_i<lst_documents.length;_i++){
         _document = lst_documents[_i];
+        if(typeof(_document.pdf_selector)!=='undefined' && _document.pdf_selector!=='' && _document.pdf_selector!==null){
+          if(!fs.existsSync(aim_path + _document.det_file_name_pdf)){
+            _document.pdf_url = _document.pdf_url.replace('http://','https://');
 
-        if(typeof(_document.details_selector)!=='undefied' && _document.details_selector && !fs.existsSync(aim_path+'details/'+_document.det_file_name_pdf)) {
-          await page.goto(detail_url);
-          await page.waitForSelector('#tableDernierRemboursement');
-          await page.waitFor(3000);
-          // let's reinit ...
-          await page.evaluate(init_remb_table);
+            post_data = await page.evaluate((pdf_selector)=>{
+              var $pdf, form, data
 
-          map_key_index = await page.evaluate(get_key_doc_to_row_index);
+              $pdf = $(pdf_selector);
+              form = $pdf.next();
+              form.children('#urlReleve').val($pdf.data('url-releve'));
+              form.children('#dattrait').val($pdf.data('dattrait'));
+              form.children('#dateReleve').val($pdf.data('date-releve'));
 
-          if(!_document.key in map_key_index || isNaN(map_key_index[_document.key])){
-            continue;
-          }
+              data = {};
+              form.serializeArray().map(function(x){data[x.name] = x.value;});
+              return data;
+            }, _document.pdf_selector);
 
-          details_selector   = '#tableDernierRemboursement tr.ligne-remboursement:nth-child('+(map_key_index[_document.key]+1)+') a.tagco-etape';
-         
-          // click on a line
-          await page.evaluate(tick_line, details_selector);
-
-          await page.waitForSelector('#ajax-details-remboursements', {'visible':true, 'timeout':30000}).catch(err => {
-            console.error(err);
-          });
-
-          if (await page.$('#ajax-details-remboursements') !== null){
-            let rect = await page.evaluate(bounding_box, '#ajax-details-remboursements');
-            await page.screenshot({
-              path: aim_path+'tmp/'+_document.det_file_name_png,
-              clip: {
-                x: rect.left - padding,
-                y: rect.top - padding,
-                width: rect.width + padding * 2,
-                height: rect.height + padding * 2
-              }
-            });
-            if(!fs.existsSync(aim_path+'details/'+_document.det_file_name_pdf)){
-              await exec('convert '+ aim_path+'tmp/'+_document.det_file_name_png  + ' ' + aim_path+'details/'+_document.det_file_name_pdf, (err, stdout, stderr) => { });
-              await page.waitFor(2000);
+            try {
+              await page.evaluate(utils.download_it,
+                                  _document.pdf_url,
+                                  aim_path + _document.det_file_name_pdf,
+                                  post_data,
+                                 ).then(utils.save_download).catch(function(error){if(error){console.log(error);}});
+            } catch(error){
+              console.log(error);
             }
-            await exec('rm '+ aim_path+'tmp/'+_document.det_file_name_png, (err, stdout, stderr) => {});
+            await page.waitFor(1000);
           }
         }
       }
-    } catch(error){
-      console.log(error);
-    }
+      await page.waitFor(5000);
 
-    await page.goto(releve_prestation);
-    await page.waitFor(3000);
-    let lst_documents_2 = await page.evaluate(read_my_secondary_docs);
-    for(let _i=0;_i<lst_documents_2.length;_i++){
-      let _document = lst_documents_2[_i];
-      if(typeof(_document.selector)!=='undefined' && _document.selector!=='' && _document.selector!==null){
-        if(!fs.existsSync(aim_path+'releves/'+_document.name)){
-          await page.evaluate(utils.download_it,
-                              _document.url,
-                              aim_path+'releves/'+_document.name,
-                              _document.data).then(utils.save_download).catch(function(error){if(error){console.log(error);}});
-          await page.waitFor(2000);
+      try {
+        await page.goto(detail_url,{ ignoreHTTPSErrors: true });
+        await page.waitForSelector('#tableDernierRemboursement');
+        await page.waitFor(3000);
+
+        let map_key_index;
+        let details_selector;
+        let padding=16;
+
+        for(let _i=0;_i<lst_documents.length;_i++){
+          _document = lst_documents[_i];
+
+          if(typeof(_document.details_selector)!=='undefied' && _document.details_selector && !fs.existsSync(aim_path+'details/'+_document.det_file_name_pdf)) {
+            await page.goto(detail_url,{ ignoreHTTPSErrors: true });
+            await page.waitForSelector('#tableDernierRemboursement');
+            await page.waitFor(3000);
+            // let's reinit ...
+            await page.evaluate(init_remb_table);
+
+            map_key_index = await page.evaluate(get_key_doc_to_row_index);
+
+            if(!_document.key in map_key_index || isNaN(map_key_index[_document.key])){
+              continue;
+            }
+
+            details_selector   = '#tableDernierRemboursement tr.ligne-remboursement:nth-child('+(map_key_index[_document.key]+1)+') a.tagco-etape';
+           
+            // click on a line
+            await page.evaluate(tick_line, details_selector);
+
+            await page.waitForSelector('#ajax-details-remboursements', {'visible':true, 'timeout':30000}).catch(err => {
+              console.error(err);
+            });
+
+            if (await page.$('#ajax-details-remboursements') !== null){
+              let rect = await page.evaluate(bounding_box, '#ajax-details-remboursements');
+              await page.screenshot({
+                path: aim_path+'tmp/'+_document.det_file_name_png,
+                clip: {
+                  x: rect.left - padding,
+                  y: rect.top - padding,
+                  width: rect.width + padding * 2,
+                  height: rect.height + padding * 2
+                }
+              });
+              if(!fs.existsSync(aim_path+'details/'+_document.det_file_name_pdf)){
+                await exec('convert '+ aim_path+'tmp/'+_document.det_file_name_png  + ' ' + aim_path+'details/'+_document.det_file_name_pdf, (err, stdout, stderr) => { });
+                await page.waitFor(2000);
+              }
+              await exec('rm '+ aim_path+'tmp/'+_document.det_file_name_png, (err, stdout, stderr) => {});
+            }
+          }
+        }
+      } catch(error){
+        console.log(error);
+      }
+
+      await page.goto(releve_prestation,{ ignoreHTTPSErrors: true });
+      await page.waitFor(3000);
+      let lst_documents_2 = await page.evaluate(read_my_secondary_docs);
+      for(let _i=0;_i<lst_documents_2.length;_i++){
+        let _document = lst_documents_2[_i];
+        if(typeof(_document.selector)!=='undefined' && _document.selector!=='' && _document.selector!==null){
+          if(!fs.existsSync(aim_path+'releves/'+_document.name)){
+            _document.pdf_url = _document.pdf_url.replace('http://','https://');
+            await page.evaluate(utils.download_it,
+                                _document.url,
+                                aim_path+'releves/'+_document.name,
+                                _document.data).then(utils.save_download).catch(function(error){if(error){console.log(error);}});
+            await page.waitFor(2000);
+          }
         }
       }
+    } catch (error) {
+      console.log(error);
     }
     await browser.close();
   })();
