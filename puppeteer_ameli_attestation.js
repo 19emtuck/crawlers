@@ -40,7 +40,6 @@ const setup_profile = (profile_id) => {
   document.querySelector('#attDroitsAccueilidBenefs').dispatchEvent(evt);
 }
 
-
 /**
  * read detail popup
  */
@@ -101,8 +100,7 @@ if(aim_path!==null && identifiant !== null && password !== null){
       await page.waitForSelector('#bpliable-header-attDroitsAccueilattDroitsItem');
       await page.waitFor(1000);
       await page.click('#bpliable-header-attDroitsAccueilattDroitsItem');
-      await page.waitFor(1000);
-
+      await page.waitFor(100);
       await page.waitForSelector('#attDroitsAccueilidBenefs', {'visible':true});
       await page.evaluate(setup_profile, 'BARD13/08/19761');
 
@@ -117,6 +115,10 @@ if(aim_path!==null && identifiant !== null && password !== null){
 
       await page.click('input[name="attDroitsAccueilorg.apache.struts.taglib.html.CANCEL"]');
       await page.waitForSelector('#bpliable-header-attDroitsAccueilattDroitsItem');
+      await page.waitFor(1000);
+      await page.click('#bpliable-header-attDroitsAccueilattDroitsItem');
+      await page.waitFor(100);
+      await page.waitForSelector('#attDroitsAccueilidBenefs', {'visible':true});
 
       // casper.waitForText('Attestation de droits');
       
