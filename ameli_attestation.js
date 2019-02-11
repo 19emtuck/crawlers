@@ -31,6 +31,7 @@ var fs       = require('fs');
 var identifiant = casper.cli.raw.get('id').toString();
 var password    = casper.cli.raw.get('pwd').toString();
 var aim_path    = casper.cli.get('path').toString();
+var key_date    = casper.cli.get('key').toString();
 
 casper.on('step.complete', function(){
    var indice = 0;
@@ -81,7 +82,7 @@ casper.thenClick('#bpliable-header-attDroitsAccueilattDroitsItem');
 casper.waitUntilVisible('#attDroitsAccueilidBenefs');
 
 casper.thenEvaluate(function(){
-  document.querySelector('#attDroitsAccueilidBenefs').value='PUT THERE YOUR ID';
+  document.querySelector('#attDroitsAccueilidBenefs').value=key_date;
   var evt = document.createEvent("HTMLEvents");
   evt.initEvent("change", false, true);
   document.querySelector('#attDroitsAccueilidBenefs').dispatchEvent(evt);
@@ -98,30 +99,6 @@ casper.then(function(){
     month_label='0'+month_label;
   }
   f_name = aim_path+'stephane_attestation_'+year_label+'_'+month_label+'.pdf';
-  if(!fs.exists(f_name)){
-    this.download(this.evaluate(function(){ return document.querySelector('a.r_lien_pdf').href }), f_name);
-  }
-});
-casper.thenClick('input[name="attDroitsAccueilorg.apache.struts.taglib.html.CANCEL"]');
-casper.waitForText('Attestation de droits');
-
-casper.thenEvaluate(function(){
-  document.querySelector('#attDroitsAccueilidBenefs').value='PUT THERE YOUR ID';
-  var evt = document.createEvent("HTMLEvents");
-  evt.initEvent("change", false, true);
-  document.querySelector('#attDroitsAccueilidBenefs').dispatchEvent(evt);
-});
-casper.wait(100);
-casper.thenClick('#attDroitsAccueilidBtValider');
-casper.waitForSelector('a.r_lien_pdf');
-casper.then(function(){
-  var year_label  = new Date().getFullYear().toString();
-  var month_label = new Date().getMonth()+1;
-  month_label = month_label.toString();
-  if(month_label.length===1){
-    month_label='0'+month_label;
-  }
-  f_name = aim_path+'teoman_attestation_'+year_label+'_'+month_label+'.pdf';
   if(!fs.exists(f_name)){
     this.download(this.evaluate(function(){ return document.querySelector('a.r_lien_pdf').href }), f_name);
   }

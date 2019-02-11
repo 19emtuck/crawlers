@@ -29,6 +29,7 @@ const root_url          = 'https://assure.ameli.fr';
 
 let aim_path    = null;
 let identifiant = null;
+let key_date    = null;
 let password    = null;
 let debug       = false;
 
@@ -63,11 +64,12 @@ const get_document_detail = (aim_path, file_prefix)=>{
 process.argv.forEach(function (val, index, array) {
   if(/--path=/.test(val)){ aim_path = val.split('=')[1]; }
   if(/--id=/.test(val)){ identifiant = val.split('=')[1]; }
+  if(/--key=/.test(val)){ key_date = val.split('=')[1]; }
   if(/--pwd=/.test(val)){ password = val.split('=')[1]; }
   if(/--debug/.test(val)){ debug = true; }
 });
 
-if(aim_path!==null && identifiant !== null && password !== null){
+if(aim_path!==null && identifiant !== null && password !== null && key_date!==null){
   if(!/\/$/.test(aim_path)){
     aim_path = aim_path + '/';
   }
@@ -102,35 +104,17 @@ if(aim_path!==null && identifiant !== null && password !== null){
       await page.click('#bpliable-header-attDroitsAccueilattDroitsItem');
       await page.waitFor(100);
       await page.waitForSelector('#attDroitsAccueilidBenefs', {'visible':true});
-      await page.evaluate(setup_profile, 'BARD13/08/19761');
+      await page.evaluate(setup_profile, key_date);
 
       await page.waitFor(100);
       await page.click('#attDroitsAccueilidBtValider');
       await page.waitForSelector('a.r_lien_pdf');
 
-      let node = await page.evaluate(get_document_detail, aim_path,'stephane_attestation_' );
+      let node = await page.evaluate(get_document_detail, aim_path,'attestation_' );
       if(!fs.existsSync(node.name)){
         await page.evaluate(utils.download_it, node.href, node.name).then(utils.save_download).catch(function(error){if(error){console.log(error);}});
       }
 
-      await page.click('input[name="attDroitsAccueilorg.apache.struts.taglib.html.CANCEL"]');
-      await page.waitForSelector('#bpliable-header-attDroitsAccueilattDroitsItem');
-      await page.waitFor(1000);
-      await page.click('#bpliable-header-attDroitsAccueilattDroitsItem');
-      await page.waitFor(100);
-      await page.waitForSelector('#attDroitsAccueilidBenefs', {'visible':true});
-
-      // casper.waitForText('Attestation de droits');
-      
-      await page.evaluate(setup_profile, 'BARD11/05/20051');
-      await page.waitFor(100);
-      await page.click('#attDroitsAccueilidBtValider');
-      await page.waitForSelector('a.r_lien_pdf');
-      node = await page.evaluate(get_document_detail, aim_path,'teoman_attestation_' );
-
-      if(!fs.existsSync(node.name)){
-        await page.evaluate(utils.download_it, node.href, node.name).then(utils.save_download).catch(function(error){if(error){console.log(error);}});
-      }
       await page.click('input[name="attDroitsAccueilorg.apache.struts.taglib.html.CANCEL"]');
     } catch (error) {
       console.log(error);
