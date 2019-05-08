@@ -44,6 +44,18 @@ if(aim_path!==null && identifiant !== null && password !== null){
   }
   (async () => {
     const browser = await puppeteer.launch({args: ['--no-sandbox', '--disable-setuid-sandbox']});
+    let connected = false;
+
+    // after beeing connect, remove any popup
+    browser.on('targetcreated', (target) => {
+      if(connected && !/assure.ameli.fr/.test(target.url())){
+        console.log(target.url());
+        let page = target.page()
+        if(page){
+          page.close();
+        }
+      }
+    })
 
     const page = await browser.newPage();
     // page.on('console', msg => console.log('PAGE LOG:', msg.text()));
@@ -64,6 +76,14 @@ if(aim_path!==null && identifiant !== null && password !== null){
       await page.type('input[name="connexioncompte_2numSecuriteSociale"]', identifiant);
       await page.type('input[name="connexioncompte_2codeConfidentiel"]', password);
       await page.click('#id_r_cnx_btn_submit');
+
+      connected = true;
+      await page.waitForSelector('#bpliable-header-attDroitsAccueilattDroitsItem');
+      // wait enough to remove any popup
+      await page.waitFor(10000);
+      if(await page.$('div.fenetre.modale:not(.invisible)') !== null){
+        await page.click('div.fenetre.modale:not(.invisible) span[id$="_close"]');
+      }
 
       await page.waitForSelector('a[href*="as_paiements_page"]');
       await page.click('a[href*="as_paiements_page"]');
