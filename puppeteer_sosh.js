@@ -24,83 +24,108 @@ const fs        = require('fs');
 const utils     = require('utils.js')
 const { exec } = require('child_process');
 
-const root_url          = 'https://www.sosh.fr/';
+const root_url  = 'https://www.sosh.fr/';
 
 let aim_path    = null;
 let identifiant = null;
 let password    = null;
 let debug       = false;
+let restricted  = true;
 
+const base64ArrayBuffer = function (arrayBuffer) {
+  var base64    = '';
+  var encodings = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  var bytes         = new Uint8Array(arrayBuffer);
+  var byteLength    = bytes.byteLength;
+  var byteRemainder = byteLength % 3;
+  var mainLength    = byteLength - byteRemainder;
+  var a, b, c, d;
+  var chunk;
 
-const get_last_invoice = ()=>{
-
-  var lst_invoice  = [];
-  var _lst_links = document.querySelectorAll('a[href*="/?page=facture-telecharger"]');
-
-  for(var i=0;i<_lst_links.length;i++){
-    // check container is last bill ...
-    var parent_container = _lst_links[i].parentElement;
-    // check the last bill
-    if(typeof(parent_container.getAttribute('class'))!=='undefined' && parent_container.getAttribute('headers').split(' ').indexOf('ec-downloadCol')!==-1){
-      var lst_date = parent_container.parentElement.querySelector('td[headers="ec-dateCol"]').innerText.trim().split(' ');
-
-      var _day   = lst_date[0];
-      if(_day.length<2){
-        _day = '0'+_day;
-      }
-
-      var _month = lst_date[1];
-      if(_month==='janvier'){
-        _month = '01';
-      } else if(_month==='f\u00e9vrier' || _month==='fevrier'){
-        _month = '02';
-      } else if(_month==='mars'){
-        _month = '03';
-      } else if(_month==='avril'){
-        _month = '04';
-      } else if(_month==='mai'){
-        _month = '05';
-      } else if(_month==='juin'){
-        _month = '06';
-      } else if(_month==='juillet'){
-        _month = '07';
-      } else if(_month==='ao\u00fbt' || _month==='aout'){
-        _month = '08';
-      } else if(_month==='septembre'){
-        _month = '09';
-      } else if(_month==='octobre'){
-        _month = '10';
-      } else if(_month==='novembre'){
-        _month = '11';
-      } else if(_month==='d\u00e9cembre' || _month==='decembre'){
-        _month = '12';
-      }
-      var _year  = lst_date[2];
-
-      lst_invoice.push({'name': 'facture_'+_day+'_'+_month+'_'+_year+'.pdf',
-                        'url' : _lst_links[i].getAttribute('href').toString() });
-    }
+  for (var i = 0; i < mainLength; i = i + 3) {
+    chunk = (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2];
+    a = (chunk & 16515072) >> 18; // 16515072 = (2^6 - 1) << 18
+    b = (chunk & 258048)   >> 12; // 258048   = (2^6 - 1) << 12
+    c = (chunk & 4032)     >>  6; // 4032     = (2^6 - 1) << 6
+    d = chunk & 63;              // 63       = 2^6 - 1
+    base64 += encodings[a] + encodings[b] + encodings[c] + encodings[d];
   }
-  return lst_invoice;
-}
 
+  if (byteRemainder == 1) {
+    chunk = bytes[mainLength];
+    a = (chunk & 252) >> 2; // 252 = (2^6 - 1) << 2
+    b = (chunk & 3)   << 4; // 3   = 2^2 - 1
+    base64 += encodings[a] + encodings[b] + '==';
+  } else if (byteRemainder == 2) {
+      chunk = (bytes[mainLength] << 8) | bytes[mainLength + 1];
+      a = (chunk & 64512) >> 10; // 64512 = (2^6 - 1) << 10
+      b = (chunk & 1008)  >>  4; // 1008  = (2^6 - 1) << 4
+      c = (chunk & 15)    <<  2; // 15    = 2^4 - 1
+      base64 += encodings[a] + encodings[b] + encodings[c] + '=';
+  }
+  return base64;
+};
 
 process.argv.forEach(function (val, index, array) {
   if(/--path=/.test(val)){ aim_path = val.split('=')[1]; }
   if(/--id=/.test(val)){ identifiant = val.split('=')[1]; }
   if(/--pwd=/.test(val)){ password = val.split('=')[1]; }
   if(/--debug/.test(val)){ debug = true; }
+  if(/--full/.test(val)){ restricted = false; }
 });
 
 if(aim_path!==null && identifiant !== null && password !== null){
   if(!/\/$/.test(aim_path)){
     aim_path = aim_path + '/';
   }
+
   (async () => {
     const browser = await puppeteer.launch({args: ['--no-sandbox', '--disable-setuid-sandbox']});
-
     const page = await browser.newPage();
     // page.on('console', msg => console.log('PAGE LOG:', msg.text()));
+
+    await page.setRequestInterception(true);
+
+    page.on('request', request => {
+      request.continue();
+    });
+
+    page.on('requestfinished', async request => {
+      if (/pdf.billDate/.test(request.url())) {
+
+        try {
+          let response = request.response();
+          let buffer = await response.buffer();
+
+          // two calls are performed
+          // only the second one contains the pdf in the response body
+          if(buffer.length>0){
+            let response_headers = response.headers();
+            let file_name = response_headers['content-disposition'].split('filename=')[1];
+
+            // facture_5a1e5a2a2fa3a18aa0ca24aa3aac3a2a_2016-04-01.pdf
+            // facture_01_04_2016.pdf
+            let content = base64ArrayBuffer(buffer);
+            // unpack it
+            let [_y, _m, _d] = file_name.split('_')[2].split('.')[0].split('-');
+            file_name = aim_path + 'facture_'+_d+'_'+_m+'_'+_y+'.pdf';
+
+            if(file_name!==null && !fs.existsSync(file_name)){
+              fs.writeFile(file_name, content, 'base64', function(err) {
+                if(err) {
+                    console.log(err);
+                    return;
+                }
+              });
+            }
+          }
+
+        } catch (e) {
+          console.error(`- failed: ${e}`);
+        } 
+      }
+    });
+
 
     await page.setViewport({width:1600, height:900});
     await page.setDefaultNavigationTimeout(90000);
@@ -122,23 +147,22 @@ if(aim_path!==null && identifiant !== null && password !== null){
       await page.waitForSelector('a.sosher_bills');
       await page.waitFor(300);
       await page.click('a.sosher_bills');
-      await page.waitForSelector('a[href*="page=factures-historique"]');
+      await page.waitForSelector('a[href*="historique-des-factures"]');
       await page.waitFor(300);
-      await page.click('a[href*="page=factures-historique"]');
-      await page.waitForSelector('div.ec-wrapper-bandeau.ec-bnt-title');
-      await page.waitForSelector('td[headers="ec-dateCol"]');
+      await page.click('a[href*="historique-des-factures"]');
+      await page.waitForSelector('table.table tbody tr td');
       await page.waitFor(600);
-      let lst_invoice = await page.evaluate(get_last_invoice);
 
-      let invoice;
-      for(let i=0;i<lst_invoice.length;i++){
-        invoice = lst_invoice[i];
-        if(invoice!==null && typeof(invoice.name)!=='undefined'){
-          if(!fs.existsSync(aim_path+invoice.name)){
-            await page.evaluate(utils.download_it, invoice.url, aim_path+invoice.name).then(utils.save_download).catch(function(error){if(error){console.log(error);}});
-          }
-        }
+      let pdf_buttons_list = await page.$$('table.table > tbody > tr > td.bp-iconContainer > a');
+      if(restricted){
+        pdf_buttons_list = pdf_buttons_list.slice(0,1);
       }
+
+      for(let _i=0;_i<pdf_buttons_list.length;_i++){
+        await page.evaluate((_b)=>{_b.click()}, pdf_buttons_list[_i]);
+        await page.waitFor(1000);
+      }
+      await page.waitFor(3000);
     } catch (error) {
       console.log(error);
     }
