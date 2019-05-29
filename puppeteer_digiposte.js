@@ -43,7 +43,6 @@ const click_label = (lst_spans, remote_path) => {
   }
 };
 
-
 process.argv.forEach(function (val, index, array) {
   if(/--path=/.test(val)){ aim_path = val.split('=')[1]; }
   if(/--remote=/.test(val)){ remote_path = val.split('=')[1]; }
@@ -70,23 +69,30 @@ if(aim_path!==null && identifiant !== null && password !== null && remote_path!=
       await page.goto(root_url);
       await page.waitFor(1000);
 
-      if(await page.$('a.lien-connexion') !== null){
-        await page.click('a.lien-connexion');
-      }
-      await page.waitForSelector('#bt_loginPlus_submit');
-      await page.waitForSelector('#login_plus_login');
-      await page.waitForSelector('#login_plus_input');
+      await page.waitForSelector('#email-input');
+      await page.waitForSelector('#password-input');
+      await page.waitForSelector('#validate-button');
 
-      await page.type('#login_plus_login', identifiant);
-      await page.type('#login_plus_input', password);
+      await page.type('#email-input', identifiant);
+      await page.type('#password-input', password);
       await page.waitFor(200);
-      await page.click('#bt_loginPlus_submit');
+      await page.click('#validate-button');
       await page.waitFor(2000);
       await page.waitForSelector('button.safeMenu_item_opener');
       await page.waitForSelector('a[href="#!/mon-coffre"]');
+     
+      // remove modal dialog if one is shown
+      if(await page.$('div.modal_dialog')!==null){
+        await page.click('div.modal_dialog button.modal_header_close');
+        await page.waitFor(200);
+        await page.waitForSelector('div.modal_dialog', {'hidden':true});
+      }
+
+      await page.waitFor(200);
       await page.click('a[href="#!/mon-coffre"]');
       await page.waitFor(2000);
-      await page.waitForSelector('button[title="Mon Coffre"]');
+      // wait until a node contains "Mon coffre"
+      await page.waitForXPath('//*[contains(child::text(), "Mon coffre")]/child::text()');
       await page.waitFor('span.safeContent_name_inner');
 
       let cookies = await page.cookies();
@@ -102,7 +108,6 @@ if(aim_path!==null && identifiant !== null && password !== null && remote_path!=
       }
 
       await page.$$eval('span.safeContent_name_inner', click_label, remote_path);
-
       await page.waitFor(100);
       await page.waitForSelector('table.safeContent_container');
       await page.waitFor(6000);
