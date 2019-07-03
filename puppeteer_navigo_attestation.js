@@ -58,64 +58,95 @@ if(aim_path!==null && identifiant !== null && password !== null){
       await page.goto(root_url);
 
       await page.waitForSelector('#loginform input[name="_username"]')
-      await page.waitForSelector('button[value="Connectez-vous \u00E0 votre espace Service Navigo"]');
+      await page.waitForSelector('#loginform button[type="submit"]');
       await page.waitFor(1000);
       await page.type('#loginform input[name="_username"]', identifiant);
       await page.waitFor(1000);
       await page.type('#loginform input[name="_password"]', password);
       await page.waitFor(1000);
-      await page.click('button[value="Connectez-vous \u00E0 votre espace Service Navigo"]');
-      await page.waitForSelector('span.plus', {'visible':true, 'timeout':60000});
-      await page.click('span.plus');
-      await page.waitForSelector('span.moins', {'visible':true});
-      await page.click('a[title="T\u00e9l\u00e9charger l\'attestation PDF"]');
-      await page.waitForSelector('button[type="submit"][title="T\u00e9l\u00e9charger"]');
+      await page.click('#loginform button[type="submit"]');
+      await page.waitFor(500);
+      await page.waitForSelector('li.deconnexion');
+      await page.waitFor(500);
 
-      let starting_month = await page.evaluate(function(){ return document.getElementById('form_moisDebut').value; });
-      if(starting_month!==null && typeof(starting_month)!=='undefined' && starting_month.length==1){
-        starting_month = '0'+starting_month;
-      } else {
-        starting_month = '';
-      }
+      await page.waitForSelector('a[href*="espace_client/detail"]');
+      await page.click('a[href*="espace_client/detail"]')
+      await page.waitForSelector('a[href*="attestation"]');
 
-      let ending_month = await page.evaluate(function(){ return document.getElementById('form_moisFin').value; });
-      if(ending_month!==null && typeof(ending_month)!=='undefined' && ending_month.length==1){
-        ending_month = '0'+ending_month;
-      } else {
-        ending_month = '';
-      }
+      var lst_urls = await page.evaluate(function(sub_identifiant){
+        var lst_href_attestation, lst_urls;
+        lst_urls = Array.from(document.querySelectorAll('a[href*="/attestation/"]')).map((e)=>{return e.href})
+        return lst_urls;
+      }, sub_identifiant);
 
-      let starting_year = await page.evaluate(function(){ return document.getElementById('form_anneeDebut').value; });
-      let ending_year   = await page.evaluate(function(){ return document.getElementById('form_anneeFin').value; });
-      let current_month = await page.evaluate(function(){ return new Date().getFullYear().toString()+'-'+(new Date().getMonth()+1);});
-      let doc_name = "attestation_"+current_month+"_periode_"+starting_month+starting_year+'_'+ending_month+ending_year+".pdf";
 
-      let the_form_request = await page.evaluate(function(){
-          var request = {};
-          var formDom = document.forms['form'];
-          formDom.onsubmit = function(){
-            // iterate the form fileds
-            var data = {};
-            for(var i=0;i<formDom.elements.length;i++){
-              data[formDom.elements[i].name] = formDom.elements[i].value;
-            }
-            request.action = formDom.action;
-            request.data = data;
-            return false; // stop submission
+      var download_url;
+
+      for(var _i=0;_i<lst_urls.length;_i++){
+        download_url = lst_urls[_i];
+        await page.goto(download_url);
+
+        await page.waitForSelector('button[type="submit"][title="T\u00e9l\u00e9charger"]');
+        await page.waitFor(500);
+
+        let doc_name, current_month;
+
+        if (await page.$('#attestation_moisDebut') !== null){
+          let starting_month = await page.evaluate(function(){ return document.getElementById('attestation_moisDebut').value; });
+          if(starting_month!==null && typeof(starting_month)!=='undefined' && starting_month.length==1){
+            starting_month = '0'+starting_month;
+          } else {
+            starting_month = '';
           }
-          // trigger the click on the link
-          var link = document.querySelector('button[title="T\u00e9l\u00e9charger"]');
-          link.click();
-          return request; // return the requested form data to casper
-      });
 
-      if(!fs.existsSync(aim_path+doc_name) && the_form_request!==null){
-        await page.evaluate(utils.download_it,
-                            the_form_request.action,
-                            aim_path+doc_name,
-                            the_form_request.data)
-                  .then(utils.save_download)
-                  .catch(function(error){if(error){console.log(error);}});
+          let ending_month = await page.evaluate(function(){ return document.getElementById('attestation_moisFin').value; });
+          if(ending_month!==null && typeof(ending_month)!=='undefined' && ending_month.length==1){
+            ending_month = '0'+ending_month;
+          } else {
+            ending_month = '';
+          }
+
+          let starting_year = await page.evaluate(function(){ return document.getElementById('attestation_anneeDebut').value; });
+          let ending_year   = await page.evaluate(function(){ return document.getElementById('attestation_anneeFin').value; });
+          current_month = await page.evaluate(function(){ return new Date().getFullYear().toString()+'-'+(new Date().getMonth()+1);});
+          doc_name = "attestation_"+current_month+"_periode_"+starting_month+starting_year+'_'+ending_month+ending_year+".pdf";
+        } else {
+          // annual
+          doc_name = await page.evaluate(()=>{
+            var _doc = document.querySelector('span.general_Intext').innerText.trim();
+            return _doc.replace(/[^0-9a-zA-Z]+/g,'_');
+          })+".pdf";
+          current_month = await page.evaluate(function(){ return new Date().getFullYear().toString()+'-'+(new Date().getMonth()+1);});
+          doc_name = "attestation_"+current_month + '_'+ doc_name;
+        }
+
+        let the_form_request = await page.evaluate(function(){
+            var request = {};
+            var formDom = document.forms['attestation'];
+            formDom.onsubmit = function(){
+              // iterate the form fileds
+              var data = {};
+              for(var i=0;i<formDom.elements.length;i++){
+                data[formDom.elements[i].name] = formDom.elements[i].value;
+              }
+              request.action = formDom.action;
+              request.data = data;
+              return false; // stop submission
+            }
+            // trigger the click on the link
+            var link = document.querySelector('button[title="T\u00e9l\u00e9charger"]');
+            link.click();
+            return request; // return the requested form data to casper
+        });
+
+        if(!fs.existsSync(aim_path + doc_name) && the_form_request!==null){
+          await page.evaluate(utils.download_it,
+                              the_form_request.action,
+                              aim_path+doc_name,
+                              the_form_request.data)
+                    .then(utils.save_download)
+                    .catch(function(error){if(error){console.log(error);}});
+        }
       }
     } catch (error) {
       console.log(error);
