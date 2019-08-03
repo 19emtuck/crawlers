@@ -73,6 +73,9 @@ const read_documents = async (page) => {
       }
       var result_list = [];
       var annee = document.querySelector('div.blocAnnee.selected').innerText;
+      if(annee.match('[0-9]{4}\n[0-9]{1,}')!==null){
+        annee = annee.split('\n')[0];
+      }
       let previous_year = (parseInt(annee, 10) -1).toString();
       var lst_texts = document.querySelectorAll('div.documents div.row div.texte');
       var lst_forms = document.querySelectorAll('div.documents div.row form');
@@ -122,17 +125,22 @@ const read_documents = async (page) => {
     for(var _i=0;_i<lst_documents.length;_i++){
       let _doc = lst_documents[_i];
 
-      if(! await fs.existsSync(aim_path+_doc.annee)){
+      if(!await fs.existsSync(aim_path+_doc.annee)){
         await fs.mkdirSync(aim_path+_doc.annee);
       }
-      if(! await fs.existsSync(aim_path+_doc.annee+'/'+_doc.type_document)){
+      if(!await fs.existsSync(aim_path+_doc.annee+'/'+_doc.type_document)){
         await fs.mkdirSync(aim_path+_doc.annee+'/'+_doc.type_document+'/');
       }
 
-      await page.evaluate(utils.download_it, 'https://cfspart.impots.gouv.fr/enp/ensu/document.do?idEnsua='+_doc.form.idEnsua, aim_path+_doc.annee+'/'+_doc.type_document+'/'+_doc.name)
-                .then(utils.save_download)
-                .catch(function(error){if(error){console.log(error);}});
-
+      let file_name = aim_path+_doc.annee+'/'+_doc.type_document+'/'+_doc.name;
+      if(file_name!==null && !fs.existsSync(file_name)){
+        // url evolved ...
+        // https://cfspart.impots.gouv.fr/enp/ensu/Affichage_Document_PDF?idEnsua=339B67F1134784E44EB19DB3DD5E1849F8517EA143FED3D857656FA5EE8588E5
+        // await page.evaluate(utils.download_it, 'https://cfspart.impots.gouv.fr/enp/ensu/document.do?idEnsua='+_doc.form.idEnsua, file_name)
+        await page.evaluate(utils.download_it, 'https://cfspart.impots.gouv.fr/enp/ensu/Affichage_Document_PDF?idEnsua='+_doc.form.idEnsua, file_name)
+                  .then(utils.save_download)
+                  .catch(function(error){if(error){console.log(error);}});
+      }
     }
 }
 
@@ -200,8 +208,6 @@ if(aim_path!==null && identifiant !== null && password !== null){
           }
           return result;
         }, restricted);
-
-
 
       for(var _i=0;_i<lst_annees.length;_i++){
         annee = lst_annees[_i];
