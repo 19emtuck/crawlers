@@ -74,15 +74,14 @@ if(aim_path!==null && identifiant !== null && password !== null && key_date!==nu
     aim_path = aim_path + '/';
   }
   (async () => {
-    const browser = await puppeteer.launch({args: ['--no-sandbox', '--disable-setuid-sandbox']});
+    const browser = await puppeteer.launch({args: ['--no-sandbox', '--disable-setuid-sandbox'], timeout:90000});
     let connected = false;
 
     // after beeing connect, remove any popup
     browser.on('targetcreated', (target) => {
       if(connected && !/assure.ameli.fr/.test(target.url())){
-        console.log(target.url());
         let page = target.page()
-        if(page){
+        if(page && typeof(page.close)!=='undefined'){
           page.close();
         }
       }
@@ -99,10 +98,8 @@ if(aim_path!==null && identifiant !== null && password !== null && key_date!==nu
     try {
       await page.goto(root_url);
       await page.waitFor(1000);
-
-      if(await page.$('a.lien-connexion') !== null){
-        await page.click('a.lien-connexion');
-      }
+      await page.waitForSelector('a.r_btsubmit.r_btlien');
+      await page.click('a.r_btsubmit.r_btlien');
       await page.waitForSelector('form[name="connexionCompteForm"]');
 
       await page.type('input[name="connexioncompte_2numSecuriteSociale"]', identifiant);

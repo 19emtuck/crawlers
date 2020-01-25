@@ -80,7 +80,7 @@ if(aim_path!==null && identifiant !== null && password !== null){
   }
 
   (async () => {
-    const browser = await puppeteer.launch({args: ['--no-sandbox', '--disable-setuid-sandbox']});
+    const browser = await puppeteer.launch({args: ['--no-sandbox', '--disable-setuid-sandbox'], timeout:90000});
     const page = await browser.newPage();
     // page.on('console', msg => console.log('PAGE LOG:', msg.text()));
 
@@ -138,18 +138,32 @@ if(aim_path!==null && identifiant !== null && password !== null){
       await page.click('#o-nav-item-login');
       await page.waitForSelector('#login');
       await page.type('#login', identifiant);
+      await page.waitFor(500);
       await page.click('#btnSubmit');
       await page.waitForSelector('#password');
       await page.type('#password', password);
+      await page.waitFor(500);
       await page.click('#btnSubmit');
       await page.waitFor(300);
-      await page.waitForSelector('#o-deconnect');
-      await page.waitForSelector('a.sosher_bills');
+      // wait with a `or` condition "later buton" or "invoices link"
+      await page.waitForSelector('#btnLater, a[data-ga-nom="consulter_vos_factures"]');
+
+      // landing page might contains a proposal
+      // just need to click see you later button
+      if(await page.$('#btnLater') !== null){
+        // let's wait all js is loaded
+        await page.waitFor(1000);
+        await page.click('#btnLater');
+        await page.waitForSelector('a[data-ga-nom="consulter_vos_factures"]');
+      }
+
       await page.waitFor(300);
-      await page.click('a.sosher_bills');
-      await page.waitForSelector('a[href*="historique-des-factures"]');
-      await page.waitFor(300);
-      await page.click('a[href*="historique-des-factures"]');
+      await page.click('a[data-ga-nom="consulter_vos_factures"]');
+      await page.waitFor(100);
+      await page.waitForSelector('span.icon-Invoices-euro');
+      await page.waitFor(1000);
+      await page.click('span.icon-Invoices-euro');
+      await page.waitFor(600);
       await page.waitForSelector('table.table tbody tr td');
       await page.waitFor(600);
 

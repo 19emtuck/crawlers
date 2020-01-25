@@ -48,7 +48,7 @@ if(aim_path!==null && identifiant !== null && password !== null && suffix!==null
     aim_path = aim_path + '/';
   }
   (async () => {
-    const browser = await puppeteer.launch({args: ['--no-sandbox', '--disable-setuid-sandbox']});
+    const browser = await puppeteer.launch({args: ['--no-sandbox', '--disable-setuid-sandbox'], timeout:90000});
     const page = await browser.newPage();
 
     await page.setViewport({width:1200, height:900});
@@ -550,10 +550,25 @@ if(aim_path!==null && identifiant !== null && password !== null && suffix!==null
 
       await aim_frame.evaluate(()=>{ $('#valider').click(); });
       await page.waitForSelector('i.icon-power');
-      await page.click('abbr[title="E-Relev\u00e9s"]');
-      await page.waitForSelector('a[href="#collapse0"]');
+      await page.waitFor(1000);
 
-      await page.click('a[href="#collapse0"]');
+      if(await page.$('div.modalContent') !== null){
+        await page.waitForSelector('div.modalContent i.icon-cross', {visible:true});
+        await page.click('div.modalContent i.icon-cross');
+        await page.waitFor(5000);
+        // wait modal to disappear
+        await page.waitForSelector('i.icon-power');
+        await page.waitFor(2000);
+      }
+      await page.waitForSelector('abbr[title="E-Relev\u00e9s"]');
+      await page.click('abbr[title="E-Relev\u00e9s"]');
+      await page.waitFor(5000);
+
+      await page.waitForSelector('div.main-content-ereleves');
+      await page.waitForSelector('div.main-content-ereleves a[href*="collapse"]');
+      await page.waitFor(1000);
+      await page.click('div.main-content-ereleves a[href*="collapse"]');
+
       await page.waitForSelector('ul.mbm.liste-cpte li', {visible:true});
       await page.waitForSelector('a[href^="refPDF-syntheseRelevesPDF.ea"]', {visible:true});
 

@@ -55,7 +55,7 @@ if(aim_path!==null && identifiant !== null && password !== null){
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36');
 
     try {
-      let invoice, i;
+      let invoice, i, abs_file_name;
 
       await page.goto(root_url);
       await page.waitForSelector('input[value="Me connecter"]');
@@ -72,7 +72,9 @@ if(aim_path!==null && identifiant !== null && password !== null){
       await page.click('input[title="Connexion"]');
       await page.waitForSelector('img[alt="Deconnexion"]');
       await page.waitFor(500);
-      await page.click('a[href*="historiqueFactures"]');
+      await page.waitForSelector('a[href*="historiqueFactures"]');
+      let invoices_url = await page.evaluate(()=>{return document.querySelector('a[href*="historiqueFactures"]').href;})
+      await page.goto(invoices_url);
       await page.waitForSelector('legend.center.formengine-legend');
 
       let lst_invoices = await page.evaluate(()=>{
@@ -86,6 +88,7 @@ if(aim_path!==null && identifiant !== null && password !== null){
 
           lst_factures_link.push({'url'      : item.href,
                                   'id'       : invoice_id,
+                                  'year'     : invoice_due_date.split('/')[2],
                                   'name'     : 'facil_famille_'+invoice_id+'_'+invoice_due_date_formated+'.pdf',
                                   'amount'   : invoice_amount,
                                   'due_date' : invoice_due_date});
@@ -95,8 +98,14 @@ if(aim_path!==null && identifiant !== null && password !== null){
 
       for(i=0;i<lst_invoices.length;i++){
         invoice = lst_invoices[i];
-        if(invoice!==null && typeof(invoice.url)!=='undefined' && typeof(invoice.name)!=='undefined' && invoice.name!==null &&!fs.existsSync(aim_path+invoice.name)){
-          await page.evaluate(utils.download_it, invoice.url, aim_path+invoice.name).then(utils.save_download).catch(function(error){if(error){console.log(error);}});
+
+        if(! await fs.existsSync(aim_path+invoice.year)){
+          await fs.mkdirSync(aim_path+invoice.year);
+        }
+
+        abs_file_name = aim_path+invoice.year+'/'+invoice.name;
+        if(invoice!==null && typeof(invoice.url)!=='undefined' && typeof(invoice.name)!=='undefined' && invoice.name!==null &&!fs.existsSync(abs_file_name)){
+          await page.evaluate(utils.download_it, invoice.url, abs_file_name).then(utils.save_download).catch(function(error){if(error){console.log(error);}});
         }
       }
 

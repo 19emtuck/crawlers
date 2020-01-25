@@ -35,16 +35,20 @@ let debug       = false;
 
 const read_invoice = ()=>{
   var _date = document.querySelector('span.sr-text-grey-14 span').innerText.replace(/[ \n]*/g,'').replace(/\//g,'_');
+  var _org_date = _date;
   _date = [_date.split('_')[2], _date.split('_')[1], _date.split('_')[0]].join('');
   return {'name': +_date+'_SFR.pdf',
+          'annee':_org_date.split('_')[2],
           'url' : document.querySelector('a[href*="facture-fixe/consultation/telecharger/facture"]').href };
 };
 
 const read_second_invoice = ()=>{
   var _date = document.querySelector('span.sr-text-grey-14 span').innerText.replace(/[ \n]*/g,'').replace(/\//g,'_');
+  var _org_date = _date;
   _date = [_date.split('_')[2], _date.split('_')[1], _date.split('_')[0]].join('');
 
   return {'name': +_date+'_SFR.pdf',
+          'annee': _org_date.split('_')[2],
           'url' : document.querySelector('a[href*="facture-fixe/consultation/telecharger"]').href };
 }
 
@@ -77,7 +81,7 @@ if(aim_path!==null && identifiant !== null && password !== null){
     aim_path = aim_path + '/';
   }
   (async () => {
-    const browser = await puppeteer.launch({args: ['--no-sandbox', '--disable-setuid-sandbox']});
+    const browser = await puppeteer.launch({args: ['--no-sandbox', '--disable-setuid-sandbox'], timeout:90000});
 
     const page = await browser.newPage();
     // page.on('console', msg => console.log('PAGE LOG:', msg.text()));
@@ -109,8 +113,12 @@ if(aim_path!==null && identifiant !== null && password !== null){
       await page.waitForSelector('#plusFac');
 
       invoice = await page.evaluate(read_invoice);
-      if(invoice!==null && typeof(invoice.url)!=='undefined' && typeof(invoice.name)!=='undefined' && invoice.name!==null &&!fs.existsSync(aim_path+invoice.name)){
-        await page.evaluate(utils.download_it, invoice.url, aim_path+invoice.name).then(utils.save_download).catch(function(error){if(error){console.log(error);}});
+
+      if(!await fs.existsSync(aim_path+invoice.annee)){
+        await fs.mkdirSync(aim_path+invoice.annee);
+      }
+      if(invoice!==null && typeof(invoice.url)!=='undefined' && typeof(invoice.name)!=='undefined' && invoice.name!==null &&!fs.existsSync(aim_path+invoice.annee+'/'+invoice.name)){
+        await page.evaluate(utils.download_it, invoice.url, aim_path+invoice.annee+'/'+invoice.name).then(utils.save_download).catch(function(error){if(error){console.log(error);}});
       }
 
       lst_nodes = await page.evaluate(read_lst_nodes);
@@ -121,8 +129,13 @@ if(aim_path!==null && identifiant !== null && password !== null){
         await page.waitFor(1000);
 
         invoice = await page.evaluate(read_second_invoice);
-        if(invoice!==null && typeof(invoice.url)!=='undefined' && typeof(invoice.name)!=='undefined' && invoice.name!==null &&!fs.existsSync(aim_path+invoice.name)){
-          await page.evaluate(utils.download_it, invoice.url, aim_path+invoice.name).then(utils.save_download).catch(function(error){if(error){console.log(error);}});
+
+        if(!await fs.existsSync(aim_path+invoice.annee)){
+          await fs.mkdirSync(aim_path+invoice.annee);
+        }
+
+        if(invoice!==null && typeof(invoice.url)!=='undefined' && typeof(invoice.name)!=='undefined' && invoice.name!==null &&!fs.existsSync(aim_path+invoice.annee+'/'+invoice.name)){
+          await page.evaluate(utils.download_it, invoice.url, aim_path+invoice.annee+'/'+invoice.name).then(utils.save_download).catch(function(error){if(error){console.log(error);}});
         }
       }
 
