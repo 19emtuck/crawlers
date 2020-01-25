@@ -22,7 +22,7 @@
 
 const puppeteer = require('puppeteer');
 const fs        = require('fs');
-const utils     = require('utils.js')
+const utils     = require('./utils.js')
 const { exec }  = require('child_process');
 
 const root_url = 'https://www.labanquepostale.fr/';
