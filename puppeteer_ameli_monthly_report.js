@@ -43,7 +43,7 @@ if(aim_path!==null && identifiant !== null && password !== null){
     aim_path = aim_path + '/';
   }
   (async () => {
-    const browser = await puppeteer.launch({args: ['--no-sandbox', '--disable-setuid-sandbox']});
+    const browser = await puppeteer.launch({args: ['--no-sandbox', '--disable-setuid-sandbox'], timeout:90000});
     let connected = false;
 
     // after beeing connect, remove any popup
@@ -68,9 +68,9 @@ if(aim_path!==null && identifiant !== null && password !== null){
       await page.goto(root_url);
       await page.waitFor(1000);
 
-      if(await page.$('a.lien-connexion') !== null){
-        await page.click('a.lien-connexion');
-      }
+      await page.waitForSelector('a.r_btsubmit.r_btlien');
+      await page.click('a.r_btsubmit.r_btlien');
+
       await page.waitForSelector('form[name="connexionCompteForm"]');
 
       await page.type('input[name="connexioncompte_2numSecuriteSociale"]', identifiant);
@@ -85,16 +85,10 @@ if(aim_path!==null && identifiant !== null && password !== null){
         await page.click('div.fenetre.modale:not(.invisible) span[id$="_close"]');
       }
 
-      await page.waitForSelector('a[href*="as_paiements_page"]');
-      await page.click('a[href*="as_paiements_page"]');
-      await page.waitFor(2000);
+      await page.waitForSelector('a[href*="as_releve_mensuel"]');
 
-      await page.waitForSelector('span.onoffswitch-inner');
-      await page.waitFor(2000);
-
-      await page.evaluate(()=>{
-        document.querySelector('span.onoffswitch-inner').click();
-      });
+      let monthly_report_page_url = await page.evaluate(()=>{return document.querySelector('a[href*="as_releve_mensuel"]').href });
+      await page.goto(monthly_report_page_url);
       await page.waitFor(2000);
 
       var lst_rembs = await page.evaluate((aim_path)=>{
@@ -118,17 +112,18 @@ if(aim_path!==null && identifiant !== null && password !== null){
                              'D\u00C9CEMBRE' : '12',
                            };
         result = [];
-        lst_download_links = document.querySelectorAll('a[id^="lienPDFReleve"]');
+        lst_download_links = document.querySelectorAll('.blocParMois:not(.cnamts-hidden) a[id^="lienPDFReleve"]');
 
         for(_i=0;_i<lst_download_links.length;_i++){
 
           link        = lst_download_links[_i];
           label       = link.parentElement.parentElement.parentElement.querySelector('span.mois').innerText;
-          year_label  = label.split(' ')[1];
-          month_label = month_labl_to_id[label.split(' ')[0]];
-
-          result.push({'name' : aim_path + 'releveMensuel_'+month_label+'_'+year_label+'.pdf',
-                       'href' : link.href});
+          if(/^[a-zA-Z\u00C0-\u017F]+ [0-9]{4}$/.test(label)){
+            year_label  = label.split(' ')[1];
+            month_label = month_labl_to_id[label.split(' ')[0]];
+            result.push({'name' : aim_path + 'releveMensuel_'+month_label+'_'+year_label+'.pdf',
+                         'href' : link.href});
+          }
         }
         return result;
       }, aim_path);
