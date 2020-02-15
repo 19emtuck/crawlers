@@ -5,7 +5,7 @@
 /* author: stéphane bard  <stephane.bard@gmail.com>                                                                         */
 /*                                                                                                                          */
 /*                                                                                                                          */
-/* Copyright © <date>, <copyright holders> Permission is hereby granted, free of charge, to any person obtaining a copy of  */
+/* Copyright © <2020>, <Bard Stéphane> Permission is hereby granted, free of charge, to any person obtaining a copy of      */
 /* this software and associated documentation files (the “Software”), to deal in the Software without restriction,          */
 /*   including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell      */
 /* copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following       */
@@ -16,7 +16,7 @@
 /* contract, tort or otherwise, arising from, out of or in connection with the software or the use or other dealings in the */
 /* Software.  Except as contained in this notice, the name of the <copyright holders> shall not be used in advertising or   */
 /* otherwise to promote the sale, use or other dealings in this Software without prior written authorization from the       */
-/* <copyright holders>.                                                                                                     */
+/* <Bard Stéphane>.                                                                                                         */
 /*                                                                                                                          */
 /****************************************************************************************************************************/
 const puppeteer = require('puppeteer');
