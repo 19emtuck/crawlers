@@ -25,7 +25,8 @@ const fs        = require('fs');
 const utils     = require('./utils.js')
 const { exec } = require('child_process');
 
-const root_url          =  'https://secure.digiposte.fr/identification-plus';
+const root_domain          =  'https://secure.digiposte.fr/';
+const root_url             =  root_domain+'identification-plus';
 
 let aim_path    = null;
 let identifiant = null;
@@ -56,7 +57,7 @@ if(aim_path!==null && identifiant !== null && password !== null && remote_path!=
     aim_path = aim_path + '/';
   }
   (async () => {
-    const browser = await puppeteer.launch({args: ['--no-sandbox', '--disable-setuid-sandbox']});
+    const browser = await puppeteer.launch({args: ['--no-sandbox', '--disable-setuid-sandbox'], timeout:90000 });
 
     const page = await browser.newPage();
     // page.on('console', msg => console.log('PAGE LOG:', msg.text()));
@@ -78,22 +79,7 @@ if(aim_path!==null && identifiant !== null && password !== null && remote_path!=
       await page.waitFor(200);
       await page.click('#validate-button');
       await page.waitFor(2000);
-      await page.waitForSelector('button.safeMenu_item_opener');
-      await page.waitForSelector('a[href="#!/mon-coffre"]');
-     
-      // remove modal dialog if one is shown
-      if(await page.$('div.modal_dialog')!==null){
-        await page.click('div.modal_dialog button.modal_header_close');
-        await page.waitFor(200);
-        await page.waitForSelector('div.modal_dialog', {'hidden':true});
-      }
-
-      await page.waitFor(200);
-      await page.click('a[href="#!/mon-coffre"]');
-      await page.waitFor(2000);
-      // wait until a node contains "Mon coffre"
-      await page.waitForXPath('//*[contains(child::text(), "Mon coffre")]/child::text()');
-      await page.waitFor('span.safeContent_name_inner');
+      await page.waitForSelector('div.last-connexion');
 
       let cookies = await page.cookies();
 
@@ -107,18 +93,38 @@ if(aim_path!==null && identifiant !== null && password !== null && remote_path!=
         }
       }
 
-      await page.$$eval('span.safeContent_name_inner', click_label, remote_path);
-      await page.waitFor(100);
-      await page.waitForSelector('table.safeContent_container');
-      await page.waitFor(6000);
+      // if you want top the safe box and the right top folder
+      // remote_path
+      await page.waitForSelector('a[href="/safe/home"]');
+      await page.waitFor(2000);
+      await page.click('a[href="/safe/home"]');
+      await page.waitForSelector('div.folder-information')
+      await page.waitForSelector('div.name');
+      await page.waitFor(2000);
+      await page.$$eval('div.name', click_label, remote_path);
+      // wait until content is loaded
+      // 
+      await page.waitForSelector('app-item-list');
+      await page.waitFor(2000);
+
+      // if you just want to download from top head news block
+      // uncomment the following lines
+
+      // await page.waitForSelector('app-safe-news div.document-title');
+      // await page.waitFor(2000);
+      // await page.waitForSelector('div.folder-information')
+      // if(page.$$('app-safe-news .button-content.ng-star-inserted')!==null){
+      //   page.click('app-safe-news .button-content.ng-star-inserted');
+      //   await page.waitFor(1000);
+      // }
 
       let lst_documents = await page.evaluate(()=>{
         var lst_result = [];
-        var lst_files = document.querySelectorAll('button[title="Aperçu du fichier"]');
+        var lst_files = document.querySelectorAll('div.document-title');
         for(var i=0; i<lst_files.length; i++){
           var _doc = {};
           var file = lst_files[i];
-          var document_id = file.parentElement.parentElement.parentElement.parentElement.parentElement.id.split('_')[3];
+          var document_id = file.id;
 
           _doc.label         = file.innerText;
           _doc.id            = document_id;
@@ -136,17 +142,18 @@ if(aim_path!==null && identifiant !== null && password !== null && remote_path!=
         _doc = lst_documents[_e];
 
         if(!fs.existsSync(aim_path + _doc.pdf_file_name)){
-          await page.$$eval('button', click_label, _doc.label);
-          await page.waitForSelector('span.modal_header_title--preview_inner');
-          await page.waitForSelector('button.dataAction_link.dataAction_link--download');
-          await page.waitFor(1000);
-          await page.click('button.dataAction_link.dataAction_link--download');
-
+          await page.$$eval('div', click_label, _doc.label);
+          await page.waitForSelector('div.document-preview iframe');
+          await page.waitForSelector('app-icon.preview-close');
+          let document_url = await page.evaluate(() => {
+             document.querySelector('div.document-preview iframe').src
+          })
           await page.evaluate(utils.download_it,
-                              'https://secure.digiposte.fr/rest/content/document/'+_doc.id+'?_xsrf_token='+xsrf_token,
+                              root_domain+'rest/content/document/'+_doc.id+'?_xsrf_token='+xsrf_token,
                               aim_path + _doc.pdf_file_name).then(utils.save_download).catch(function(error){if(error){console.log(error);}});
-          await page.click('button.modal_header_close');
-          await page.waitForSelector('button.modal_header_close', {'visible':false});
+          await page.click('app-icon.preview-close');
+          await page.waitForFunction(()=> {return document.querySelector('app-icon.preview-close')===null;});
+          await page.waitForFunction(()=> {return document.querySelector('div.document-preview')===null;});
           await page.waitFor(500);
         }
       }
